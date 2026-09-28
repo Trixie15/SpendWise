@@ -1,0 +1,7 @@
+module.exports = {
+  CURRENCIES: ['PHP', 'USD', 'EUR', 'JPY', 'KRW', 'SGD', 'AUD', 'GBP'],
+  POLICY_VERSION: '1.0',
+  MAX_LOGIN_ATTEMPTS: 5,
+  LOCK_MINUTES: 15,
+  MAX_AMOUNT: 1000000000,
+};
