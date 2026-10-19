@@ -27,4 +27,11 @@ router.patch(
   c.updateUser
 );
 
+router.post(
+  '/users/:id/unlock',
+  [param('id').isMongoId().withMessage('Invalid user ID')],
+  validate,
+  c.unlockUser
+);
+
 module.exports = router;

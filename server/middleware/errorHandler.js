@@ -33,7 +33,8 @@ const errorHandler = (err, req, res, next) => {
   if (status >= 500) {
     // Full details go to the server log only (path without query string, no request body)
     console.error(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl.split('?')[0]}`, err);
-    message = 'Something went wrong on our end. Please try again later.';
+    // Hide internal details unless the error was written to be shown to users
+    if (!err.expose) message = 'Something went wrong on our end. Please try again later.';
   }
 
   res.status(status).json({ message });

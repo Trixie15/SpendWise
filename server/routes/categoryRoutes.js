@@ -1,11 +1,12 @@
 const router = require('express').Router();
 const { body, param, query } = require('express-validator');
 const validate = require('../middleware/validate');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const { noHtml } = require('../utils/validators');
 const c = require('../controllers/categoryController');
 
-router.use(protect);
+// Personal finance data is for regular users only; admins monitor accounts, not finances
+router.use(protect, authorize('user'));
 const idRule = param('id').isMongoId().withMessage('Invalid category ID');
 
 const nameRule = (optional) => {

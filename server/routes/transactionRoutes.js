@@ -1,13 +1,14 @@
 const router = require('express').Router();
 const { body, param, query } = require('express-validator');
 const validate = require('../middleware/validate');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const { PAYMENT_METHODS } = require('../models/Transaction');
 const { noHtml, reasonableDate } = require('../utils/validators');
 const { MAX_AMOUNT } = require('../utils/constants');
 const c = require('../controllers/transactionController');
 
-router.use(protect);
+// Personal finance data is for regular users only; admins monitor accounts, not finances
+router.use(protect, authorize('user'));
 const idRule = param('id').isMongoId().withMessage('Invalid transaction ID');
 
 // Builds rules; "optional" for updates where any field may be left out

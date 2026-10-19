@@ -1,6 +1,8 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import UserRoute from './components/UserRoute';
+import HomeRedirect from './components/HomeRedirect';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -12,6 +14,8 @@ import Categories from './pages/Categories';
 import Settings from './pages/Settings';
 import Admin from './pages/Admin';
 import NotFound from './pages/NotFound';
+
+const asUser = (page) => <UserRoute>{page}</UserRoute>;
 
 export default function App() {
   return (
@@ -27,20 +31,19 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/transactions" element={<Transactions />} />
-        <Route path="/budgets" element={<Budgets />} />
-        <Route path="/categories" element={<Categories />} />
+        <Route path="/" element={<HomeRedirect />} />
+
+        {/* Regular users only */}
+        <Route path="/dashboard" element={asUser(<Dashboard />)} />
+        <Route path="/transactions" element={asUser(<Transactions />)} />
+        <Route path="/budgets" element={asUser(<Budgets />)} />
+        <Route path="/categories" element={asUser(<Categories />)} />
+
+        {/* Admins only */}
+        <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+
+        {/* Everyone */}
         <Route path="/settings" element={<Settings />} />
-        <Route
-          path="/admin"
-          element={
-            <AdminRoute>
-              <Admin />
-            </AdminRoute>
-          }
-        />
       </Route>
 
       <Route path="*" element={<NotFound />} />

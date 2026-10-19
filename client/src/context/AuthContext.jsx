@@ -40,8 +40,8 @@ export function AuthProvider({ children }) {
     saveSession(res.data);
   };
 
-  const register = async (name, email, password, consent) => {
-    const res = await api.post('/auth/register', { name, email, password, consent });
+  const register = async (firstName, lastName, email, password, consent) => {
+    const res = await api.post('/auth/register', { firstName, lastName, email, password, consent });
     saveSession(res.data);
   };
 

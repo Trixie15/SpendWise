@@ -11,7 +11,11 @@ import DataPrivacySettings from '../components/DataPrivacySettings';
 
 export default function Settings() {
   const { user, setUser, replaceToken } = useAuth();
-  const [profile, setProfile] = useState({ name: user.name, currency: user.currency || 'PHP' });
+  const [profile, setProfile] = useState({
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
+    currency: user.currency || 'PHP',
+  });
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirm: '' });
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
@@ -20,7 +24,11 @@ export default function Settings() {
     e.preventDefault();
     setSavingProfile(true);
     try {
-      const res = await api.put('/auth/me', { name: profile.name.trim(), currency: profile.currency });
+      const res = await api.put('/auth/me', {
+        firstName: profile.firstName.trim(),
+        lastName: profile.lastName.trim(),
+        currency: profile.currency,
+      });
       setUser(res.data);
       toast.success('Profile saved');
     } catch (err) {
@@ -63,16 +71,31 @@ export default function Settings() {
 
       <form onSubmit={saveProfile} className="panel space-y-4">
         <h2 className="text-lg font-bold">Profile</h2>
-        <div>
-          <label htmlFor="s-name" className="label">Name</label>
-          <input
-            id="s-name"
-            required
-            maxLength={50}
-            className="input"
-            value={profile.name}
-            onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="s-first" className="label">First name</label>
+            <input
+              id="s-first"
+              required
+              maxLength={50}
+              autoComplete="given-name"
+              className="input"
+              value={profile.firstName}
+              onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
+            />
+          </div>
+          <div>
+            <label htmlFor="s-last" className="label">Last name</label>
+            <input
+              id="s-last"
+              required
+              maxLength={50}
+              autoComplete="family-name"
+              className="input"
+              value={profile.lastName}
+              onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
+            />
+          </div>
         </div>
         <div>
           <label htmlFor="s-email" className="label">Email</label>

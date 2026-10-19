@@ -47,6 +47,15 @@ export default function Privacy() {
           </p>
         </Section>
 
+        <Section title="AI budget recommendations">
+          <p>
+            When you press "Get suggestions" on the Budgets page, SpendWise sends only your monthly spending totals per category
+            (for example, "Food: ₱3,100") and your average monthly income to Google Gemini to suggest budget limits. Your name,
+            email, transaction notes and individual purchases are never sent. This only happens when you ask for suggestions,
+            and you decide whether to apply them.
+          </p>
+        </Section>
+
         <Section title="Who can see it">
           <p>
             Only you can see your transactions, categories and budgets. Administrators can manage accounts (for example,

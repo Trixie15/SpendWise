@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { currentMonth, formatMoney, monthLabel, shiftMonth } from '../utils/format';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
+import AiBudgetSuggestions from '../components/AiBudgetSuggestions';
 
 const STATUS_STYLES = {
   ok: { bar: 'bg-jade', text: 'text-jade' },
@@ -99,6 +100,8 @@ export default function Budgets() {
           </button>
         </div>
       </div>
+
+      <AiBudgetSuggestions key={month} month={month} currency={currency} onApplied={load} />
 
       {/* Set budget form */}
       <form ref={formRef} onSubmit={handleSave} className="panel grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">

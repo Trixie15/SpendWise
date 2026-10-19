@@ -23,7 +23,7 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useCooldown();
 
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) return <Navigate to="/" replace />;
   const notice = NOTICES[params.get('reason')];
 
   const backToLogin = () => {
@@ -44,7 +44,7 @@ export default function Login() {
           else toast.error("We couldn't send the email. Press Resend, or use a backup code.");
         }
       } else {
-        navigate('/dashboard');
+        navigate('/');
       }
     } catch (err) {
       toast.error(getError(err));
@@ -58,7 +58,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       await verifyMfa(mfa.mfaToken, code.trim());
-      navigate('/dashboard');
+      navigate('/');
     } catch (err) {
       const message = getError(err);
       toast.error(message);

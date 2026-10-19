@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { AlertTriangle, ArrowLeftRight, CheckCircle2, PiggyBank, Plus } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, PiggyBank, Plus } from 'lucide-react';
 import {
   Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import api, { getError } from '../api/axios';
 import { useAuth } from '../context/AuthContext';
-import { currentMonth, formatMoney, monthLabel } from '../utils/format';
+import { currentMonth, formatMoney, monthLabel, shiftMonth } from '../utils/format';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import TransactionForm from '../components/TransactionForm';
@@ -20,7 +20,10 @@ const compact = (n) =>
 export default function Dashboard() {
   const { user } = useAuth();
   const currency = user?.currency || 'PHP';
-  const month = currentMonth();
+  // Interactive filter: every KPI and chart on the dashboard follows the selected month
+  const [month, setMonth] = useState(currentMonth());
+  const isCurrentMonth = month === currentMonth();
+  const periodLabel = isCurrentMonth ? 'this month' : `in ${monthLabel(month)}`;
 
   const [data, setData] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -28,9 +31,9 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     try {
       const [summary, byCategory, trend, budgets] = await Promise.all([
-        api.get('/dashboard/summary'),
+        api.get('/dashboard/summary', { params: { month } }),
         api.get('/dashboard/by-category', { params: { month } }),
-        api.get('/dashboard/monthly-trend', { params: { months: 6 } }),
+        api.get('/dashboard/monthly-trend', { params: { months: 6, end: month } }),
         api.get('/budgets', { params: { month } }),
       ]);
       setData({
@@ -45,6 +48,7 @@ export default function Dashboard() {
   }, [month]);
 
   useEffect(() => {
+    setData(null);
     load();
   }, [load]);
 
@@ -54,7 +58,7 @@ export default function Dashboard() {
   const monthSpentTotal = byCategory.reduce((sum, c) => sum + c.total, 0);
   const spentRatio = summary.monthIncome > 0 ? summary.monthExpense / summary.monthIncome : summary.monthExpense > 0 ? 1 : 0;
   const alerts = budgets.filter((b) => b.status !== 'ok');
-  const firstName = user?.name?.split(' ')[0];
+  const firstName = user?.firstName || user?.name?.split(' ')[0];
 
   return (
     <div className="space-y-6">
@@ -63,9 +67,38 @@ export default function Dashboard() {
           <h1 className="text-3xl font-extrabold tracking-tight">Hi, {firstName}</h1>
           <p className="text-pine-soft">Here's your money for {monthLabel(month)}.</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn btn-primary">
-          <Plus className="h-4 w-4" /> Add transaction
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-xl border border-line bg-white p-1" role="group" aria-label="Filter dashboard by month">
+            <button onClick={() => setMonth((m) => shiftMonth(m, -1))} className="rounded-lg p-2 hover:bg-canvas" aria-label="Previous month">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <label className="flex items-center gap-1.5 px-1">
+              <CalendarDays className="h-4 w-4 text-pine-soft" />
+              <span className="sr-only">Month</span>
+              <input
+                type="month"
+                value={month}
+                max={currentMonth()}
+                onChange={(e) => e.target.value && setMonth(e.target.value)}
+                className="bg-transparent text-sm font-semibold focus:outline-none"
+              />
+            </label>
+            <button
+              onClick={() => setMonth((m) => shiftMonth(m, 1))}
+              disabled={isCurrentMonth}
+              className="rounded-lg p-2 hover:bg-canvas disabled:opacity-30"
+              aria-label="Next month"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+          {!isCurrentMonth && (
+            <button onClick={() => setMonth(currentMonth())} className="btn btn-ghost px-3">This month</button>
+          )}
+          <button onClick={() => setShowAdd(true)} className="btn btn-primary">
+            <Plus className="h-4 w-4" /> Add transaction
+          </button>
+        </div>
       </div>
 
       {/* Balance hero */}
@@ -81,11 +114,11 @@ export default function Dashboard() {
 
         <div className="mt-8 grid gap-6 sm:grid-cols-2">
           <div>
-            <p className="text-sm text-white/70">Earned this month</p>
+            <p className="text-sm text-white/70">Earned {periodLabel}</p>
             <p className="font-display text-2xl font-bold tabular-nums">{formatMoney(summary.monthIncome, currency)}</p>
           </div>
           <div>
-            <p className="text-sm text-white/70">Spent this month</p>
+            <p className="text-sm text-white/70">Spent {periodLabel}</p>
             <p className="font-display text-2xl font-bold tabular-nums">{formatMoney(summary.monthExpense, currency)}</p>
           </div>
         </div>
@@ -99,8 +132,8 @@ export default function Dashboard() {
           </div>
           <p className="mt-2 text-sm text-white/70">
             {summary.monthIncome > 0
-              ? `You've spent ${Math.round(spentRatio * 100)}% of what you earned this month.`
-              : 'Add your income to see how much of it you are spending.'}
+              ? `You've spent ${Math.round(spentRatio * 100)}% of what you earned ${periodLabel}.`
+              : `No income recorded ${periodLabel}. Add income to see how much of it you are spending.`}
           </p>
         </div>
       </section>
@@ -109,9 +142,9 @@ export default function Dashboard() {
         {/* Spending by category */}
         <section className="panel lg:col-span-2">
           <h2 className="text-lg font-bold">Where it went</h2>
-          <p className="text-sm text-pine-soft">Spending by category this month</p>
+          <p className="text-sm text-pine-soft">Spending by category {periodLabel}</p>
           {byCategory.length === 0 ? (
-            <EmptyState title="No spending yet" text="Expenses you add this month will show up here." />
+            <EmptyState title="No spending yet" text={`No expenses recorded ${periodLabel}.`} />
           ) : (
             <>
               <div className="h-52">
@@ -152,7 +185,7 @@ export default function Dashboard() {
 
         {/* Monthly trend */}
         <section className="panel lg:col-span-3">
-          <h2 className="text-lg font-bold">Last 6 months</h2>
+          <h2 className="text-lg font-bold">6 months to {monthLabel(month)}</h2>
           <p className="text-sm text-pine-soft">Money in vs money out</p>
           <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -177,7 +210,7 @@ export default function Dashboard() {
         {/* Recent transactions */}
         <section className="panel lg:col-span-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold">Recent transactions</h2>
+            <h2 className="text-lg font-bold">Recent transactions {isCurrentMonth ? '' : `(${monthLabel(month)})`}</h2>
             <Link to="/transactions" className="text-sm font-semibold text-jade hover:underline">View all</Link>
           </div>
           {summary.recentTransactions.length === 0 ? (
@@ -211,7 +244,7 @@ export default function Dashboard() {
           ) : alerts.length === 0 ? (
             <div className="mt-6 flex items-start gap-3 rounded-xl bg-jade-soft p-4 text-sm">
               <CheckCircle2 className="h-5 w-5 shrink-0 text-jade" />
-              <p>All {budgets.length} budgets are on track this month.</p>
+              <p>All {budgets.length} budgets are on track {periodLabel}.</p>
             </div>
           ) : (
             <ul className="mt-4 space-y-3">

@@ -48,14 +48,15 @@ const completeLogin = async (res, userId) => {
 
 // @route  POST /api/auth/register
 exports.register = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+  const { firstName, lastName, email, password } = req.body;
 
   if (await User.findOne({ email })) fail(res, 400, 'Email is already registered');
 
   // Only these fields are accepted. "role" and other fields in the request are ignored,
   // so nobody can register themselves as an admin.
   const user = await User.create({
-    name,
+    firstName,
+    lastName,
     email,
     password,
     consent: { acceptedAt: new Date(), policyVersion: POLICY_VERSION },
@@ -177,8 +178,9 @@ exports.getMe = asyncHandler(async (req, res) => {
 
 // @route  PUT /api/auth/me
 exports.updateMe = asyncHandler(async (req, res) => {
-  const { name, currency } = req.body;
-  if (name !== undefined) req.user.name = name;
+  const { firstName, lastName, currency } = req.body;
+  if (firstName !== undefined) req.user.firstName = firstName;
+  if (lastName !== undefined) req.user.lastName = lastName;
   if (currency !== undefined) req.user.currency = currency;
   await req.user.save();
   res.json(req.user);

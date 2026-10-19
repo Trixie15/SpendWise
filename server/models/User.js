@@ -4,12 +4,15 @@ const { CURRENCIES } = require('../utils/constants');
 
 const userSchema = new mongoose.Schema(
   {
-    // Data minimization: only name, email and password are required to use the app
+    // Data minimization: only first name, last name, email and password are required
+    firstName: { type: String, trim: true, maxlength: [50, 'First name cannot exceed 50 characters'] },
+    lastName: { type: String, trim: true, maxlength: [50, 'Last name cannot exceed 50 characters'] },
+    // Full name, kept in sync automatically (used for display, search and emails)
     name: {
       type: String,
       required: [true, 'Name is required'],
       trim: true,
-      maxlength: [50, 'Name cannot exceed 50 characters'],
+      maxlength: [101, 'Name is too long'],
     },
     email: {
       type: String,
@@ -62,6 +65,13 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Keep the full name in sync with first and last name
+userSchema.pre('validate', async function () {
+  if (this.isModified('firstName') || this.isModified('lastName')) {
+    this.name = [this.firstName, this.lastName].filter(Boolean).join(' ').trim();
+  }
+});
+
 // Hash password with bcrypt (cost 12) whenever it changes
 userSchema.pre('save', async function () {
   if (!this.isModified('password')) return;
@@ -82,6 +92,12 @@ const HIDDEN = ['password', 'tokenVersion', 'failedLoginAttempts', 'lockUntil', 
 userSchema.set('toJSON', {
   transform: (doc, ret) => {
     HIDDEN.forEach((field) => delete ret[field]);
+    // Accounts created before first/last name existed: split the full name
+    if (!ret.firstName && ret.name) {
+      const parts = ret.name.trim().split(/\s+/);
+      ret.firstName = parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0];
+      ret.lastName = parts.length > 1 ? parts[parts.length - 1] : '';
+    }
     return ret;
   },
 });

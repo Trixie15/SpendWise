@@ -13,15 +13,16 @@ const sumByType = async (match) => {
 };
 
 // @route  GET /api/dashboard/summary
-// All-time balance, this month's totals, and 5 most recent transactions
+// @query  month=YYYY-MM (optional, defaults to the current month)
+// All-time balance, the selected month's totals, and 5 most recent transactions in that month
 exports.getSummary = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const { start, end } = monthRange(currentMonth());
+  const { start, end } = monthRange(req.query.month || currentMonth());
 
   const [allTime, thisMonth, recent] = await Promise.all([
     sumByType({ user: userId }),
     sumByType({ user: userId, date: { $gte: start, $lt: end } }),
-    Transaction.find({ user: userId })
+    Transaction.find({ user: userId, date: { $gte: start, $lt: end } })
       .populate('category', 'name icon color')
       .sort('-date -createdAt')
       .limit(5),
@@ -75,15 +76,16 @@ exports.getCategoryBreakdown = asyncHandler(async (req, res) => {
   res.json(data);
 });
 
-// @route  GET /api/dashboard/monthly-trend?months=6
-// Income vs expense per month, used for the bar/line chart
+// @route  GET /api/dashboard/monthly-trend?months=6&end=2026-09
+// Income vs expense per month (ending at the selected month), used for the bar chart
 exports.getMonthlyTrend = asyncHandler(async (req, res) => {
   const months = Math.min(Math.max(parseInt(req.query.months, 10) || 6, 1), 24);
-  const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
+  const [endYear, endMonth] = (req.query.end || currentMonth()).split('-').map(Number);
+  const start = new Date(Date.UTC(endYear, endMonth - 1 - (months - 1), 1));
+  const until = new Date(Date.UTC(endYear, endMonth, 1));
 
   const rows = await Transaction.aggregate([
-    { $match: { user: req.user._id, date: { $gte: start } } },
+    { $match: { user: req.user._id, date: { $gte: start, $lt: until } } },
     {
       $group: {
         _id: { year: { $year: '$date' }, month: { $month: '$date' }, type: '$type' },

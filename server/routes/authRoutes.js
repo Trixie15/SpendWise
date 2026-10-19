@@ -14,13 +14,13 @@ const emailRule = body('email')
   .isLength({ max: 254 }).withMessage('Email is too long')
   .isEmail().withMessage('Valid email is required');
 
-const nameRule = (optional = false) => {
-  const rule = body('name');
+const nameRule = (field, label, optional = false) => {
+  const rule = body(field);
   return (optional ? rule.optional() : rule)
-    .isString().withMessage('Name is required').bail()
+    .isString().withMessage(`${label} is required`).bail()
     .trim()
-    .isLength({ min: 2, max: 50 }).withMessage('Name must be 2 to 50 characters')
-    .matches(NAME_PATTERN).withMessage('Name can only contain letters, spaces, dots, apostrophes and hyphens');
+    .isLength({ min: 1, max: 50 }).withMessage(`${label} must be 1 to 50 characters`)
+    .matches(NAME_PATTERN).withMessage(`${label} can only contain letters, spaces, dots, apostrophes and hyphens`);
 };
 
 const codeRule = body('code')
@@ -33,7 +33,8 @@ router.post(
   '/register',
   authLimiter,
   [
-    nameRule(),
+    nameRule('firstName', 'First name'),
+    nameRule('lastName', 'Last name'),
     emailRule,
     strongPassword('password'),
     body('consent').custom((v) => v === true).withMessage('You must agree to the Privacy Policy to create an account'),
@@ -78,7 +79,7 @@ router.get('/me', protect, auth.getMe);
 router.put(
   '/me',
   protect,
-  [nameRule(true), body('currency').optional().isIn(CURRENCIES).withMessage('Unsupported currency')],
+  [nameRule('firstName', 'First name', true), nameRule('lastName', 'Last name', true), body('currency').optional().isIn(CURRENCIES).withMessage('Unsupported currency')],
   validate,
   auth.updateMe
 );

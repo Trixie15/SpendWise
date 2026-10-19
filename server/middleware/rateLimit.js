@@ -20,3 +20,8 @@ exports.authLimiter = limiter(
   'Too many attempts from this device. Please try again in 15 minutes.',
   { skipSuccessfulRequests: true }
 );
+
+// AI suggestions: limited per user to control cost and prevent abuse of the AI service
+exports.aiLimiter = limiter(60, 15, 'You have asked for suggestions many times. Please try again in an hour.', {
+  keyGenerator: (req) => `ai:${req.user._id}`,
+});

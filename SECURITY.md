@@ -17,6 +17,7 @@ This document maps each security criterion to how SpendWise implements it and wh
 | Range checks | Amounts 0.01 to 1,000,000,000; dates between 2000 and 1 year ahead; valid IDs, months, currencies and colors only | `server/routes/transactionRoutes.js`, `budgetRoutes.js`, `categoryRoutes.js` |
 | Payload size limit | Request bodies over 10 KB rejected | `server/server.js` |
 | Spreadsheet formula injection | Exported CSV cells starting with `=`, `+`, `-` or `@` are neutralized so they can't run as Excel formulas | `client/src/components/DataPrivacySettings.jsx` (`csvCell`) |
+| AI output treated as untrusted input | Every AI-suggested limit is checked (must be a number from 50 up to twice the average, for a category the user owns), reasons are stripped of `<` `>` and length-limited, and applying a suggestion goes through the normal validated budget API | `server/utils/aiBudget.js` |
 | Regex injection in search | User search text is escaped before querying | `server/controllers/transactionController.js` |
 | Client-side validation | Live password checklist, name format, confirm password, max lengths (for user experience; the server always re-checks) | `client/src/pages/Register.jsx`, `components/PasswordChecklist.jsx` |
 
@@ -50,6 +51,8 @@ This document maps each security criterion to how SpendWise implements it and wh
 | Protection | How | Where |
 |---|---|---|
 | Roles | `user` (default) and `admin` | `server/models/User.js` |
+| **Separation of duties** | Admins monitor and manage accounts only. Personal finance APIs (transactions, categories, budgets, dashboard) require the `user` role, so admins get **403** even if they call them directly; the admin menu shows only Monitoring and Settings | `routes/transactionRoutes.js`, `categoryRoutes.js`, `budgetRoutes.js`, `dashboardRoutes.js` (`authorize('user')`), `client/src/components/UserRoute.jsx`, `Layout.jsx` |
+| Admin monitoring | Account statistics (active, disabled, locked, new users, 2FA adoption) and per-user status, with confirmation before every admin action | `adminController.js`, `client/src/pages/Admin.jsx` |
 | Role-based middleware | `authorize('admin')` on all admin routes → 403 for regular users | `server/middleware/auth.js`, `routes/adminRoutes.js` |
 | Data ownership | Every query is filtered by the logged-in user's ID, so users can never read or change another user's records, even with a valid ID | all controllers (`{ user: req.user._id }`) |
 | No privilege escalation at sign-up | `role` in the register request is ignored; admins are created only via a server script | `authController.js`, `scripts/makeAdmin.js` |
@@ -57,7 +60,7 @@ This document maps each security criterion to how SpendWise implements it and wh
 | Least privilege for admins | Admins see account info only, never transactions, budgets or amounts | `adminController.js` (`ADMIN_VISIBLE_FIELDS`) |
 | Frontend route guards | Protected routes need login; `/admin` needs admin role; Admin link hidden for users | `client/src/components/ProtectedRoute.jsx`, `AdminRoute.jsx`, `Layout.jsx` |
 
-**Demo:** Log in as a regular user and open `/admin` → redirected. Call `GET /api/admin/users` with a user token in Postman → 403.
+**Demo:** Log in as a regular user and open `/admin` → redirected. Call `GET /api/admin/users` with a user token in Postman → 403. Log in as an admin: only Monitoring and Settings appear, and `GET /api/transactions` with an admin token → 403.
 
 ---
 
@@ -105,8 +108,9 @@ This document maps each security criterion to how SpendWise implements it and wh
 |---|---|---|
 | **Consent** | Registration requires ticking the Privacy Policy checkbox; the server rejects sign-ups without consent and records the date and policy version | `client/src/pages/Register.jsx`, `server/routes/authRoutes.js`, `User.js` (`consent`) |
 | Transparency | Privacy Policy page explaining what is collected, why, who can see it, and user rights under RA 10173 (Data Privacy Act of 2012) | `client/src/pages/Privacy.jsx` |
-| **Data minimization** | Only name, email and password required; no phone, address, birthday or bank details; notes are optional | `User.js`, `Privacy.jsx` |
+| **Data minimization** | Only first name, last name, email and password required; no phone, address, birthday or bank details; notes are optional | `User.js`, `Privacy.jsx` |
 | **Purpose limitation** | Admins manage accounts but cannot view financial data; logs contain no request bodies or search terms | `adminController.js`, `server.js` (morgan) |
+| AI data minimization | AI budget recommendations send only monthly totals per category and average income, with categories as anonymous keys. No name, email, notes, individual purchases or database IDs are sent; it only runs when the user presses "Get suggestions" | `server/utils/aiBudget.js`, `client/src/components/AiBudgetSuggestions.jsx`, `Privacy.jsx` |
 | Right of access / portability | "Download your data" in three formats: a readable report (printable to PDF), an Excel/CSV file of transactions, and machine-readable JSON for moving to another app. Passwords and security keys are never included | `server/controllers/accountController.js`, `client/src/components/DataPrivacySettings.jsx` |
 | Right to correction | Edit name and preferences in Settings | `client/src/pages/Settings.jsx` |
 | Right to erasure | "Delete account" permanently removes the account and all records (requires password and typing DELETE) | `accountController.js` |
@@ -121,13 +125,15 @@ This document maps each security criterion to how SpendWise implements it and wh
 | Protection | How | Where |
 |---|---|---|
 | Account lockout | 5 failed password or MFA attempts → locked for 15 minutes | `authController.js` (`recordFailure`) |
+| AI rate limit | 15 AI suggestion requests per user per hour; 20-second timeout; API key sent in a header and kept in `.env` | `server/middleware/rateLimit.js`, `server/utils/aiBudget.js` |
 | Rate limiting | Login/register/MFA: 10 failed attempts per 15 min per IP; whole API: 300 requests per 15 min | `server/middleware/rateLimit.js` |
 | Server-side logout | Logout revokes the token on the server (token versioning), not just in the browser | `authController.js` (`logout`), `middleware/auth.js` |
 | Session expiry | Tokens expire after 1 hour | `.env` (`JWT_EXPIRES_IN`) |
 | Idle timeout | Automatic logout after 15 minutes of inactivity | `client/src/context/AuthContext.jsx` |
 | Session ends when the tab closes | Token kept in `sessionStorage` | `client/src/api/axios.js` |
 | Password change signs out other devices | Token version increases; the current session gets a fresh token | `authController.js` (`changePassword`) |
-| Admin can disable accounts | Disabled users are signed out immediately and can't log in | `adminController.js`, `middleware/auth.js` |
+| Admin can disable or unlock accounts | Disabled users are signed out immediately and can't log in; admins can see locked accounts and unlock them | `adminController.js`, `middleware/auth.js` |
+| Logout confirmation | Users confirm before logging out, preventing accidental sign-outs | `client/src/components/Layout.jsx` |
 | Re-authentication for sensitive actions | Password required to change password, disable MFA, or delete the account | `authController.js`, `mfaController.js`, `accountController.js` |
 
 **Demo:** Enter a wrong password 5 times → "Account temporarily locked". Log out, then reuse the old token in Postman → 401.

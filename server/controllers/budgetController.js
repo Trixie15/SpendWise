@@ -3,6 +3,7 @@ const Category = require('../models/Category');
 const Transaction = require('../models/Transaction');
 const asyncHandler = require('../utils/asyncHandler');
 const { currentMonth, monthRange } = require('../utils/dateUtils');
+const { buildSummary, basicRecommendations, aiRecommendations } = require('../utils/aiBudget');
 
 // @route  GET /api/budgets?month=2026-09
 // Returns each budget with how much has been spent, remaining, % used, and status
@@ -90,4 +91,52 @@ exports.deleteBudget = asyncHandler(async (req, res) => {
     throw new Error('Budget not found');
   }
   res.json({ message: 'Budget deleted' });
+});
+
+// @route  POST /api/budgets/recommendations   body: { month? }
+// Suggests a monthly limit per category based on the last 3 months of spending.
+exports.getRecommendations = asyncHandler(async (req, res) => {
+  const month = req.body.month || currentMonth();
+  const currency = req.user.currency || 'PHP';
+  const summary = await buildSummary(req.user._id, month);
+
+  if (!summary.categories.length) {
+    res.status(400);
+    throw new Error('Not enough data yet. Log some expenses first, then try again.');
+  }
+
+  let result = null;
+  let source = 'basic';
+  let notice = null;
+
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      result = await aiRecommendations(summary, currency, month);
+      source = 'ai';
+    } catch (err) {
+      console.error('AI budget recommendation failed:', err.message);
+      notice = 'The AI service is unavailable right now, so these suggestions were calculated from your spending averages.';
+    }
+  } else {
+    notice = 'AI is not connected yet, so these suggestions were calculated from your spending averages.';
+  }
+  if (!result) result = basicRecommendations(summary, currency);
+
+  res.json({
+    source,
+    model: source === 'ai' ? result.model : undefined,
+    month,
+    basedOn: summary.months,
+    partialMonth: summary.partialMonth,
+    averageIncome: Math.round(summary.averageIncome),
+    tip: result.tip,
+    notice,
+    recommendations: result.recommendations.map((r) => ({
+      category: r.category,
+      averageSpent: Math.round(r.average),
+      suggestedLimit: r.limit,
+      currentLimit: r.currentLimit,
+      reason: r.reason,
+    })),
+  });
 });

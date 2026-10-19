@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ArrowLeftRight, LayoutDashboard, LogOut, PiggyBank, Settings, ShieldCheck, Tags } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Logo from './Logo';
+import Modal from './Modal';
 
-const links = [
+const USER_LINKS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { to: '/budgets', label: 'Budgets', icon: PiggyBank },
@@ -11,18 +13,26 @@ const links = [
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
+// Admins monitor accounts only, so they don't get the personal finance pages
+const ADMIN_LINKS = [
+  { to: '/admin', label: 'Monitoring', icon: ShieldCheck },
+  { to: '/settings', label: 'Settings', icon: Settings },
+];
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const isAdmin = user?.role === 'admin';
+  const navLinks = isAdmin ? ADMIN_LINKS : USER_LINKS;
 
   const handleLogout = async () => {
+    setLoggingOut(true);
     await logout();
     navigate('/login');
   };
-
-  // The Admin link only appears for admins (the server also blocks non-admins)
-  const navLinks =
-    user?.role === 'admin' ? [...links, { to: '/admin', label: 'Admin', icon: ShieldCheck }] : links;
 
   return (
     <div className="min-h-screen md:flex">
@@ -30,6 +40,11 @@ export default function Layout() {
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-white px-4 py-6 md:flex">
         <div className="px-2">
           <Logo />
+          {isAdmin && (
+            <span className="mt-3 inline-block rounded-full bg-marigold-soft px-2.5 py-1 text-xs font-semibold">
+              Administrator
+            </span>
+          )}
         </div>
         <nav className="mt-8 flex flex-1 flex-col gap-1">
           {navLinks.map(({ to, label, icon: Icon }) => (
@@ -51,7 +66,7 @@ export default function Layout() {
           <p className="truncate px-3 text-sm font-semibold">{user?.name}</p>
           <p className="truncate px-3 text-xs text-pine-soft">{user?.email}</p>
           <button
-            onClick={handleLogout}
+            onClick={() => setConfirmLogout(true)}
             className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-pine-soft hover:bg-rose-soft hover:text-rose"
           >
             <LogOut className="h-[18px] w-[18px]" />
@@ -63,7 +78,7 @@ export default function Layout() {
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-white/95 px-4 py-3 backdrop-blur md:hidden">
         <Logo />
-        <button onClick={handleLogout} className="rounded-lg p-2 text-pine-soft hover:bg-canvas" aria-label="Log out">
+        <button onClick={() => setConfirmLogout(true)} className="rounded-lg p-2 text-pine-soft hover:bg-canvas" aria-label="Log out">
           <LogOut className="h-5 w-5" />
         </button>
       </header>
@@ -84,9 +99,7 @@ export default function Layout() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${
-                isActive ? 'text-jade' : 'text-pine-soft'
-              }`
+              `flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${isActive ? 'text-jade' : 'text-pine-soft'}`
             }
           >
             <Icon className="h-5 w-5" />
@@ -94,6 +107,22 @@ export default function Layout() {
           </NavLink>
         ))}
       </nav>
+
+      {/* Logout confirmation */}
+      <Modal open={confirmLogout} title="Log out of SpendWise?" onClose={() => !loggingOut && setConfirmLogout(false)}>
+        <p className="text-sm text-pine-soft">
+          You'll need your password{user?.mfaEnabled ? ' and a verification code' : ''} to log in again.
+        </p>
+        <div className="mt-6 flex justify-end gap-2">
+          <button onClick={() => setConfirmLogout(false)} disabled={loggingOut} className="btn btn-ghost">
+            Cancel
+          </button>
+          <button onClick={handleLogout} disabled={loggingOut} className="btn btn-danger">
+            <LogOut className="h-4 w-4" />
+            {loggingOut ? 'Logging out…' : 'Log out'}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

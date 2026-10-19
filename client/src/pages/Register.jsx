@@ -13,12 +13,15 @@ const NAME_PATTERN = /^[\p{L}\p{M} .'-]+$/u;
 export default function Register() {
   const { user, register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '', consent: false });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirm: '', consent: false });
   const [submitting, setSubmitting] = useState(false);
 
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) return <Navigate to="/" replace />;
 
-  const nameValid = form.name.trim().length >= 2 && NAME_PATTERN.test(form.name.trim());
+  const validName = (v) => v.trim().length >= 1 && v.trim().length <= 50 && NAME_PATTERN.test(v.trim());
+  const firstValid = validName(form.firstName);
+  const lastValid = validName(form.lastName);
+  const nameValid = firstValid && lastValid;
   const strong = isStrongPassword(form.password);
   const matches = form.password === form.confirm;
   const canSubmit = nameValid && strong && matches && form.consent && !submitting;
@@ -28,9 +31,9 @@ export default function Register() {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      await register(form.name.trim(), form.email.trim(), form.password, form.consent);
+      await register(form.firstName.trim(), form.lastName.trim(), form.email.trim(), form.password, form.consent);
       toast.success('Account created');
-      navigate('/dashboard');
+      navigate('/');
     } catch (err) {
       toast.error(getError(err));
     } finally {
@@ -41,19 +44,33 @@ export default function Register() {
   return (
     <AuthShell title="Create your account" subtitle="We only ask for what we need.">
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <div>
-          <label htmlFor="name" className="label">Name</label>
-          <input
-            id="name"
-            required
-            maxLength={50}
-            autoComplete="name"
-            className="input"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          {form.name && !nameValid && (
-            <p className="mt-1.5 text-xs text-rose">Use 2–50 letters. Spaces, dots, apostrophes and hyphens are allowed.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="firstName" className="label">First name</label>
+            <input
+              id="firstName"
+              required
+              maxLength={50}
+              autoComplete="given-name"
+              className="input"
+              value={form.firstName}
+              onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+            />
+          </div>
+          <div>
+            <label htmlFor="lastName" className="label">Last name</label>
+            <input
+              id="lastName"
+              required
+              maxLength={50}
+              autoComplete="family-name"
+              className="input"
+              value={form.lastName}
+              onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+            />
+          </div>
+          {((form.firstName && !firstValid) || (form.lastName && !lastValid)) && (
+            <p className="text-xs text-rose sm:col-span-2">Names can only contain letters, spaces, dots, apostrophes and hyphens.</p>
           )}
         </div>
         <div>

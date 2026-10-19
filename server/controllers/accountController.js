@@ -18,12 +18,13 @@ exports.exportData = asyncHandler(async (req, res) => {
     Budget.find({ user: userId }).populate('category', 'name').select('category limit month').lean(),
   ]);
 
-  const u = req.user;
+  const u = req.user.toJSON(); // includes first/last name for older accounts
   res.setHeader('Content-Disposition', 'attachment; filename="spendwise-my-data.json"');
   res.json({
     exportedAt: new Date(),
     profile: {
-      name: u.name,
+      firstName: u.firstName,
+      lastName: u.lastName,
       email: u.email,
       currency: u.currency,
       role: u.role,

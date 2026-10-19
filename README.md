@@ -72,6 +72,14 @@ EMAIL_FROM=SpendWise <your.gmail@gmail.com>
 `EMAIL_PASS` must be a Gmail **App Password** (Google Account → Security → 2-Step Verification → App passwords), not your normal password.
 If these are left empty during development, codes are printed in the server terminal instead.
 
+### AI budget recommendations (optional)
+Get a free Gemini API key at https://aistudio.google.com/apikey and add to `server/.env`:
+```
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-2.5-flash
+```
+Without a key, the Budgets page still gives suggestions calculated from the user's spending averages.
+
 ### Creating an admin
 Register normally in the app, then run:
 ```bash

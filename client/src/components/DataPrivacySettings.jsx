@@ -118,7 +118,8 @@ const buildReport = (data) => {
 
   <h2>Profile</h2>
   <table>
-    <tr><th>Name</th><td>${escapeHtml(profile.name)}</td></tr>
+    <tr><th>First name</th><td>${escapeHtml(profile.firstName)}</td></tr>
+    <tr><th>Last name</th><td>${escapeHtml(profile.lastName)}</td></tr>
     <tr><th>Email</th><td>${escapeHtml(profile.email)}</td></tr>
     <tr><th>Currency</th><td>${escapeHtml(profile.currency)}</td></tr>
     <tr><th>Account type</th><td>${profile.role === 'admin' ? 'Administrator' : 'User'}</td></tr>

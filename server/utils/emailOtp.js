@@ -13,6 +13,7 @@ class OtpError extends Error {
   constructor(status, message) {
     super(message);
     this.status = status;
+    this.expose = true; // safe, user-friendly message: show it even for 5xx errors
   }
 }
 
@@ -47,6 +48,9 @@ const issueEmailOtp = async (user, purpose, { reuseIfRecent = false } = {}) => {
     await sendOtpEmail(user.email, user.name, code, purpose);
   } catch (err) {
     console.error('Failed to send OTP email:', err.message);
+    if (/invalid login|username and password not accepted|535/i.test(err.message)) {
+      console.error('  → Check EMAIL_USER and EMAIL_PASS in .env. EMAIL_PASS must be a 16-letter Gmail App Password (no spaces).');
+    }
     await User.updateOne({ _id: user._id }, { $unset: { emailOtp: 1 } });
     throw new OtpError(502, 'We could not send the email right now. Please try again in a moment.');
   }
